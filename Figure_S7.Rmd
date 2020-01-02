@@ -1,0 +1,117 @@
+---
+title: "Figure S7: Pairwise distance between genotypes, within and between slides"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache=FALSE)
+library(plyr)
+library(dplyr)
+library( taRifx )
+library(phangorn)
+library(beeswarm)
+library(Rtsne)
+library(ggplot2)
+source('funx.R')
+
+
+set.seed(6)
+```
+
+```{r prep}
+
+thr=.05 # set to 0 if no calling is required
+
+pxy=3
+
+tumor.summary<-data.frame(
+  name=c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W"),
+  reroot=c("A9_4","A4_20", "none", "none", "A11_15", "none", "A21_26", "A7_7", "A3_24", "A7_3", "A5_19", "A6_25"),
+  slide.1=c("A9", "A3", "A3",  "A6","A11" , "B8", "A22","A7", "A3", "A7", "A5" , "A6"),
+  slide.2=c("A26", "A4","A9", "A5","A10", "B10", "A21","A7", "A4" , "A10", "A4", "A5"))
+
+
+```
+
+
+
+
+
+```{r combo, echo=FALSE, message=FALSE, warning=FALSE}
+
+#####################################
+## Beeswarms
+#####################################
+
+tumor.summary<-tumor.summary[-c(which(tumor.summary$name=="J"), which(tumor.summary$name=="R")),]
+
+for(nam in tumor.summary$name){
+  
+ 
+ ###################################
+  # Pre-processing I
+  Xout<-tumor_process(nam)
+  datG<-Xout[[1]]
+  
+  ###################################
+  # Pre-processing II
+  XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+  namz<-XoutY[[1]]
+  dat<-XoutY[[4]]
+  
+  
+  ##################################
+  ind<-match(namz$original, datG$spot)
+  namz$phenotype<-datG$phenotype[ind]
+  namz$sample<-datG$sample[ind]
+  namz$slide<-datG$slide[ind]
+  namz$subclone<-as.factor(as.character(namz$subclone))
+  
+  ind<-match( namz$original, rownames(dat))
+  dat<-dat[ind,]  
+
+  j<-which(tumor.summary$name==nam)
+  namz$slide<-as.character(namz$slide)
+  ind.1<-which(namz$slide==tumor.summary$slide.1[j])
+  ind.2<-which(namz$slide==tumor.summary$slide.2[j])
+  
+  dat.1<-unique(dat[ind.1,]*1)
+  dat.2<-unique(dat[ind.2,]*1)
+  
+  dat<-rbind(dat.1, dat.2)
+
+  S <- as.matrix(dist(dat, method = "manhattan")) # distance matrix
+  
+
+  S1 <- S[1:dim(dat.1)[1], 1:dim(dat.1)[1]]
+  S1 <- S1[lower.tri(S1)]
+  S2 <- S[(dim(dat.1)[1]+1): dim(dat)[1], (dim(dat.1)[1]+1): dim(dat)[1]]
+  S2 <- S2[lower.tri(S2)]
+  S3 <- as.vector(S[(dim(dat.1)[1]+1): dim(dat)[1], 1:dim(dat.1)[1]])
+  
+  Swithin<-data.frame(S=c(S1, S2), label="Within slide")
+  Scross<-data.frame(S=S3, label="Between slides")
+  
+  S.dat<-rbind(Swithin, Scross)
+  
+a<-t.test(Swithin$S, Scross$S)
+b<-wilcox.test(Swithin$S, Scross$S)
+#print(a$p.value)
+#print(b$p.value)
+  
+  
+beeswarm(S ~ label, data = S.dat, 
+         col = rainbow(2), pch = 16, cex=2.5,spacing=1.5,  xlab="", ylab="",cex.axis=1.5,
+         main = paste("Tumor", nam, ", p=", round(b$p.value,3), sep=" "))
+
+
+
+#bxplot(Correlation ~ label, data = corr.sum, add = TRUE)
+  
+}
+
+
+
+```

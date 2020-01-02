@@ -1,0 +1,550 @@
+---
+title: "Tumor-Specific Mutation Panels and Maximum Parsimony Trees"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache=TRUE)
+library(dplyr)
+library( taRifx )
+library(Rtsne)
+library(ggplot2)
+library(phangorn)
+library(knitr)
+library(gplots)
+library(scanstatistics)
+library(phytools)
+
+source('funx.R')
+
+```
+
+
+The following Maximum Parsimony trees are based on Nixon's Parsimony Ratchet algorithm. Bootstrap values are in red. Some trees were not binary after ratchet, so I converted them to binary (random split of multifurcations).
+
+```{r dd, echo=FALSE, results='asis'}
+#####################################
+## MP trees
+#####################################
+
+thr=.05 # set to 0 if no calling is required
+tumor.summary<-data.frame(
+  name=c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W"),
+  reroot=c("A9_4","A4_20", "none", "none", "A11_15", "none", "A21_26", "A7_7", "A3_24", "A7_3", "A5_19", "A6_25"))
+
+n.BS=1000 # bootstrap samples
+```
+
+
+
+### Tumor C
+
+```{r tumor_C, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="C"
+XoutY<-MP_tree_function(thr, tumor.summary, nam,n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+#palette(hcl.colors(length(unique(namz$subclone)), "Blue-Red 3", rev = TRUE))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=FALSE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, Rowv=TRUE, Colv=TRUE, trace="none", cexRow=.6, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+################################
+# PDF export
+################################
+
+```
+
+
+
+
+### Tumor D
+
+```{r tumor_D, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="D"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=FALSE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, Rowv=TRUE, Colv=TRUE, trace="none", cexRow=.6, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+
+### Tumor E
+
+```{r tumor_E, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="E"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+# reroot it - no outlier routine
+treeMP<-reroot(treeMP,node=39,position=0.5*treeMP$edge.length[which(treeMP$edge[,2]==39)])
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone[match(treeMP$tip.label, namz$original)])
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.3,colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+
+
+### Tumor F
+
+```{r tumor_F, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="F"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+##################################
+## reroot the tree along an edge
+##################################
+
+treeMP<-reroot(treeMP,node=44,position=0.5*treeMP$edge.length[which(treeMP$edge[,2]==44)])
+namz=namz[match(treeMP$tip.label,namz$original),] 
+
+##################################
+## Plot the trees
+##################################
+
+treeMP<-reroot(treeMP,node=36,position=0.5*treeMP$edge.length[which(treeMP$edge[,2]==36)])
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone[match(treeMP$tip.label, namz$original)])
+add.scale.bar()
+
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=1, cexCol=1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+
+
+### Tumor H
+
+```{r tumor_H, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="H"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+
+### Tumor J
+
+```{r tumor_J, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+nam="J"
+
+##################################
+# START PREPARATION
+##################################
+Xout<-tumor_process(nam)
+datG<-Xout[[1]]
+distG_S1<-Xout[[2]]
+distG_S2<-Xout[[3]]
+datG_S1<-Xout[[4]]
+datG_S2<-Xout[[5]]
+
+# Convert to a phylo object
+ind<-which(colnames(datG)=="spot")
+dat<-datG[,1:ind]
+rownames(dat)<-dat$spot
+dat$spot<-NULL
+dat<-(dat>.05)
+
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main = "Mutation panel", key.title="Mutation Key", revC = TRUE, cexRow=.5)
+
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1.1)
+
+
+
+```
+
+
+### Tumor K
+
+```{r tumor_K, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="K"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+
+### Tumor R
+
+```{r tumor_R, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="R"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+
+### Tumor M
+
+```{r tumor_M, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="M"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+### Tumor T
+
+```{r tumor_T, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="T"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+
+### Tumor U
+
+```{r tumor_U, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="U"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1.1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+
+### Tumor W
+
+```{r tumor_W, echo=FALSE, results='asis'}
+#####################################
+## Construct the MP tree
+#####################################
+set.seed(666)
+
+nam="W"
+XoutY<-MP_tree_function(thr, tumor.summary, nam, n.BS)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+BStrees<-XoutY[[3]]
+dat<-XoutY[[4]]
+
+
+##################################
+## Plot the trees
+##################################
+
+palette(rainbow(length(unique(namz$subclone))))
+plotBS(treeMP, BStrees, "phylogram", bs.col="black", main=paste("Phylogeny of tumor ", nam, sep = ""), cex=1,  p=50, tip.color=namz$subclone)
+add.scale.bar()
+
+################################
+# MUTATION PANEL HEATMAP
+################################
+
+heatmap.2(t(dat*1), distfun = dist, hclustfun = hclust,  scale = "none", col = cm.colors(2), key=TRUE, tracecol=NA, main =paste("Mutation panel of tumor ", nam, sep = ""), key.title="Mutation Key", revC = TRUE, cexRow=.8, cexCol=1, colCol = namz$subclone[match(colnames(t(dat)), namz$original)])
+
+################################
+# Print the list of subclones 
+################################
+
+namz.out=namz[order(namz$subclone),]
+print(kable(namz.out[,-1]))
+
+
+```
+

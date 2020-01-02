@@ -1,0 +1,108 @@
+---
+title: "Figure 5e and Figure S3: tSNE Outputs"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache=FALSE)
+library(plyr)
+library(dplyr)
+library( taRifx )
+library(phangorn)
+library(Rtsne)
+library(ggplot2)
+source('funx.R')
+
+
+set.seed(6)
+```
+
+```{r prep}
+
+thr=.05 # set to 0 if no calling is required
+
+pxy=3
+
+tumor.summary<-data.frame(
+  name=c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W"),
+  reroot=c("A9_4","A4_20", "none", "none", "A11_15", "none", "A21_26", "A7_7", "A3_24", "A7_3", "A5_19", "A6_25"))
+
+
+
+```
+
+
+
+## t-SNE Clustering with subclone and phenotype
+
+
+
+```{r combo, echo=FALSE, message=FALSE, warning=FALSE}
+
+#####################################
+## t-SNE
+#####################################
+
+for(nam in tumor.summary$name){
+  
+ 
+ ###################################
+  # Pre-processing I
+  Xout<-tumor_process(nam)
+  datG<-Xout[[1]]
+  
+  ###################################
+  # Pre-processing II
+  XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+  namz<-XoutY[[1]]
+  dat<-XoutY[[4]]
+  
+  
+  ##################################
+  ind<-match(namz$original, datG$spot)
+  namz$phenotype<-datG$phenotype[ind]
+  namz$sample<-datG$sample[ind]
+  namz$slide<-datG$slide[ind]
+  namz$subclone<-as.factor(as.character(namz$subclone))
+  
+  ind<-match(rownames(dat), namz$original)
+  labels.subclone<-namz$subclone[ind]
+  labels.pheno<-namz$phenotype[ind]
+
+  
+  CC <- dist(dat, method = "manhattan") # distance matrix
+  
+  
+  tsne <- Rtsne(CC, dims = 2, perplexity=pxy, verbose=FALSE, max_iter = 10000, check_duplicates = FALSE)
+  
+
+  dat<-as.data.frame(tsne$Y)
+  dat$label<-labels.pheno
+  dat$label=mapvalues(dat$label, from = c("inv", "super", "ad", "LN met", "ln met"), to = c("invasive", "superficial", "adenoma", "lymph node met", "lymph node met"))
+  
+  dat$label2<-labels.subclone
+  g<-ggplot(data = dat, aes(x=V1, y=V2, color=label2, shape=label))+geom_point( size=5)+ggtitle(paste("Tumor ", nam, sep = ""))
+  g<-g+xlab("Dimension 1") + ylab("Dimension 2")+ labs(color = "Subclone", shape="Phenotype")+
+      theme(axis.text.x=element_blank(),
+           axis.title.x=element_text(size=rel(1)),
+                      title=element_text(size=rel(1.5)),
+                      axis.title.y=element_text(size=rel(1)),
+        axis.ticks.x=element_blank(),
+        axis.text.y=element_blank(),
+    legend.text=element_text(size=rel(1.5)),
+        legend.title=element_text(size=rel(1.5)),
+    axis.ticks.y=element_blank())
+
+   print(g)
+   
+   ggsave( file="Fig_S3_K.pdf", width=8, height=5)
+
+
+  
+}
+
+
+
+```

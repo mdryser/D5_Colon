@@ -1,0 +1,501 @@
+---
+title: "Figure 5: Subclone statistics"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache=FALSE)
+
+library(dplyr)
+library(ade4)
+library(sf)
+library(taRifx )
+library(Rtsne)
+library(ggplot2)
+library(adephylo)
+library(beeswarm)
+library(phangorn)
+source('funx.R')
+
+
+set.seed(6)
+```
+
+
+
+```{r prep, echo=FALSE}
+thr=.05 # set to 0 if no calling is required
+
+
+tumor.summary<-data.frame(
+  name=c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W"),
+  reroot=c("A9_4","A4_20", "none", "none", "A11_15", "none", "A21_26", "A7_7", "A3_24", "A7_3", "A5_19", "A6_25"))
+```
+
+
+## Figure 5a: subclone size distribution
+
+```{r clone size v2, echo=FALSE}
+
+w.out<-data.frame(tumor="A",  n=1)
+
+for(nam in tumor.summary$name){
+
+# Process the data to extract the number of subclones
+XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+namz<-XoutY[[1]]
+
+t<-table(namz$subclone)
+w<-data.frame(tumor=rep(nam, length(t)),  n=as.vector(t))
+
+w.out<-rbind(w.out, w)
+}
+
+w.out<-w.out[-1,]
+
+
+
+ggplot(w.out, aes(x = n)) +  geom_histogram(color="black", fill="red", binwidth = 1, alpha=0.4)+xlab("Spots per subclone (n)") +scale_x_continuous(breaks=c(1, seq(5,30,5)))+ ylab("Subclones (n)") + theme_classic()+
+      theme(axis.text.x=element_text(size=rel(1.8)), 
+        axis.text.y=element_text(size=rel(1.8)),
+        axis.title.x=element_text(size=rel(2)),
+        axis.title.y=element_text(size=rel(2)))
+
+
+ggsave( file="Fig_5a.pdf", width=5, height=4)
+
+
+# stats
+#median(w.out$n)
+
+```
+
+
+## Figure 5b: Number of subclones per slide
+
+```{r subclone v1, echo=FALSE}
+
+#########################################
+## Subclone distributions for each tumor
+#########################################
+
+w.out<-data.frame(tumor="A", slide="A1", n=0)
+
+for(nam in tumor.summary$name){
+
+# Pre-processing I
+Xout<-tumor_process(nam)
+datG<-Xout[[1]]
+
+
+###################################
+# Pre-processing II
+XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+namz<-XoutY[[1]]
+
+
+##################################
+ind<-match(namz$original,datG$spot)
+namz$phenotype<-datG$phenotype[ind]
+namz$sample<-datG$sample[ind]
+namz$slide<-datG$slide[ind]
+namz$subclone<-as.factor(as.character(namz$subclone))
+
+if(nam %in% c("C", "J", "H")){namz<-namz[-which(grepl("met", namz$phenotype)), ]}
+namz$slide<-droplevels(namz$slide)
+w<-data.frame(tumor=nam, slide=levels(namz$slide), n=0)
+
+for(sl in levels(namz$slide)){
+  
+  ind<-which(namz$slide==sl)
+  w$n[which(w$slide==sl)]<-length(unique(namz$subclone[ind]))
+  
+  
+}
+
+
+w.out<-rbind(w.out, w)
+}
+
+w.out<-w.out[-1,]
+
+ggplot(w.out, aes(x = n)) +  geom_histogram(color="black", fill="red", binwidth = 1, alpha=.4)+xlab("Subclones per slide (n)") +scale_x_continuous(breaks=seq(1,10,1))+ ylab("Slides (n)") + theme_classic()+
+    theme(axis.text.x=element_text(size=rel(2)), 
+        axis.text.y=element_text(size=rel(2)),
+        axis.title.x=element_text(size=rel(2)),
+        axis.title.y=element_text(size=rel(2)))
+
+ggsave( file="Fig_5b.pdf", width=5, height=4)
+
+
+# summary stats
+
+#median(w.out$n)
+```
+
+
+## Figure 5c: Number of subclones per tumor
+
+```{r subclone v2, echo=FALSE}
+
+######################
+## Subclone distributions for each tumor
+######################
+
+clone.n<-data.frame(tumor=tumor.summary$name, n=0)
+
+for(nam in tumor.summary$name){
+
+# Process the data to extrac the number of subclones
+XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+namz<-XoutY[[1]]
+
+clone.n$n[clone.n$tumor==nam]<-max(namz$subclone)
+
+}
+
+ggplot(clone.n, aes(x = n)) +  geom_histogram(color="black", fill="red",alpha=0.4, binwidth = 1)+xlab("Subclones per tumor (n)") +scale_x_continuous(breaks=seq(1,10,1))+ ylab("Tumors (n)") + theme_classic()+
+  theme(axis.text.x=element_text(size=rel(2)), 
+        axis.text.y=element_text(size=rel(2)),
+        axis.title.x=element_text(size=rel(2)),
+        axis.title.y=element_text(size=rel(2)))
+
+
+ggsave( file="Fig_5c.pdf", width=5, height=4)
+
+# summary stats
+
+#median(clone.n$n)
+        
+```
+
+
+## Figure 5d: Phenotype distribution for invasive carcinomas (Version 1)
+
+
+```{r phenotype v1`, echo=FALSE}
+
+# Each tumor separately (removing the adenoma K)
+w.out<-data.frame(tumor=1, pheno="Mixed", freq=1, n=1)
+
+for(nam in tumor.summary$name[-7]){
+
+###################################
+# Pre-processing I
+Xout<-tumor_process(nam)
+datG<-Xout[[1]]
+
+
+###################################
+# Pre-processing II
+XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+namz<-XoutY[[1]]
+
+
+##################################
+ind<-match(namz$original,datG$spot)
+namz$phenotype<-datG$phenotype[ind]
+namz$sample<-datG$sample[ind]
+namz$slide<-datG$slide[ind]
+
+namz$subclone<-as.factor(as.character(namz$subclone))
+###################################
+
+n=length(unique(namz$subclone))
+v<-data.frame(tumor=nam, clone=levels(namz$subclone), pheno=0)
+
+for(clo in 1:n){
+  
+  c<-levels(namz$subclone)[clo]
+  
+  ind<-which(namz$subclone==c)
+  
+  if(any(grepl("inv", namz$phenotype[ind]) | grepl("met", namz$phenotype[ind])) & any(grepl("sup", namz$phenotype[ind]))){
+    
+    v$pheno[clo]<-"Mixed"
+    
+  } else if(all(grepl("inv", namz$phenotype[ind])|grepl("met", namz$phenotype[ind]))){
+    
+    v$pheno[clo]<-"Invasive/metastatic"
+  } else if(all(namz$phenotype[ind]=="super")){
+    
+    v$pheno[clo]<-"Superficial"
+  }
+    
+}
+
+w<-data.frame(tumor=nam, pheno=names(table(v$pheno)), freq=as.vector(table(v$pheno)/sum(table(v$pheno))), n=as.vector(table(v$pheno)))
+w.out<-rbind(w.out,w)
+
+}
+
+w.out<-w.out[-1,]
+
+## All tumors combined
+
+a<-c(sum(w.out$n[w.out$pheno=="Invasive/metastatic"]),
+     sum(w.out$n[w.out$pheno=="Superficial"]),
+     sum(w.out$n[w.out$pheno=="Mixed"]))
+
+w<-data.frame(tumor="ALL", pheno=c("Invasive/metastatic","Superficial", "Mixed"), freq=a/sum(a), n=a)
+
+
+w.out<-rbind(w.out,w)
+
+
+ggplot(w.out, aes(x = tumor, y = freq, fill = pheno)) +  geom_bar(stat = "identity") +ylab("Frequency")+xlab("Carcinoma")+labs(fill = "Subclone phenotype")+scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9"))+
+      theme(axis.text.x=element_text(size=rel(2.5)), 
+        axis.text.y=element_text(size=rel(1.5)),
+        axis.title.x=element_text(size=rel(2)),
+        legend.text = element_text(size=rel(1.5)),
+        legend.title = element_text(size=rel(1.5)),
+        axis.title.y=element_text(size=rel(2)))
+
+ggsave( file="Fig_5d.pdf", width=14, height=8)
+
+
+```
+
+
+
+## Figure 5f: Subclone size distribution by early and late
+
+Next, we look at the subclone size distribution by phenotype
+
+```{r clonesize_v3, echo=FALSE}
+
+w.out<-data.frame(tumor="A", subclone="b", timing="early", n=1)
+
+for(nam in tumor.summary$name[-7]){
+
+###################################
+# Pre-processing I
+Xout<-tumor_process(nam)
+datG<-Xout[[1]]
+
+###################################
+# Pre-processing II
+XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+namz<-XoutY[[1]]
+treeMP<-XoutY[[2]]
+
+##################################
+ind<-match(namz$original,datG$spot)
+namz$phenotype<-datG$phenotype[ind]
+namz$sample<-datG$sample[ind]
+namz$slide<-datG$slide[ind]
+
+namz$subclone<-as.factor(as.character(namz$subclone))
+
+dr<-distRoot(treeMP)
+dr.early<-which(dr<=max(dr)/2)
+dr.late<-which(dr>max(dr)/2)
+dr[dr.early]<-"early"
+dr[dr.late]<-"late"
+
+namz$timing<-dr[match(names(dr),namz$original)]
+
+w<-data.frame(tumor=nam, subclone=levels(namz$subclone), timing="early", n=1)
+w$timing<-as.character(w$timing)
+
+for(lev in levels(w$subclone)){
+
+  ind<-which(namz$subclone==lev)
+
+  w$n[which(w$subclone==lev)]<-length(ind)
+
+  w$timing[which(w$subclone==lev)]<-namz$timing[ind[1]]
+
+}
+
+w.out<-rbind(w.out, w)
+}
+
+w.out<-w.out[-1,]
+w.out$timing<-as.factor(w.out$timing)
+
+# ggplot(w.out, aes(x = n, fill=phenotype, color=phenotype)) +  geom_histogram(alpha = 0.2, binwidth = 1, position='identity')+xlab("Spots per subclone (n)") +scale_x_continuous(breaks=c(1, seq(5,30,5)))+ ylab("Subclones (n)")
+
+
+ggplot(w.out, aes(x = n, fill=timing, color=timing))+geom_density(alpha=0.4, stat="density")+labs(color="", fill="Timing")+ylab("Density")+xlab("Spots per subclone (n)")+theme_classic()+
+  theme(axis.text.x=element_text(size=rel(1.8)),
+        axis.text.y=element_text(size=rel(1.8)),
+        axis.title.x=element_text(size=rel(2)),
+        axis.title.y=element_text(size=rel(2)))
+
+# summary statistics
+
+sum(w.out$timing=="early")
+sum(w.out$timing=="late")
+
+ind.early<-which(w.out$timing=="early")
+ind.late<-which(w.out$timing=="late")
+
+early.vec<-w.out$n[ind.early]
+late.vec<-w.out$n[ind.late]
+
+median(early.vec)
+median(late.vec)
+
+wilcox.test(early.vec, late.vec, paired = FALSE)
+
+ggsave( file="Fig_5f.pdf", width=6, height=4)
+
+```
+
+
+## Figure 5g: normalized distance between neighboring clones
+
+```{r}
+#####################################
+## Read in
+#####################################
+
+
+
+names.vec<-c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W")
+
+c<-(c(1,2,6,4,2, 2)-1)/6
+d<-(c(2,3,1,2)-1)/3
+e<-(c(2,4,5,2,1,5,5,1)-1)/4
+f<-(c(4,1, 3, 2, 3, 3, 2, 3)-1)/3
+h<-(c(1,2)-1)/1
+k<-(c(2,2,4,4,5,2, 6)-1)/5
+m<-(c(2, 3, 4,5, 2, 2, 2, 3, 5)-1)/5
+r<-(c(2,2,1)-1)/1
+t<-(c(2,2, 1,4)-1)/3
+u<-(c(2,2,2)-1)/2
+w<-(c(2, 2, 4,5, 2, 4, 3, 1,3)-1)/5
+
+
+
+vec<-data.frame(val=c(m,d,k,c,h,e,r, f, t, u,w))
+
+ggplot(vec, aes(x = val)) +  geom_histogram(color="black", fill="red", binwidth = .2, alpha=0.4)+xlab("Adjacent subclone distance") +scale_x_continuous(breaks=c(seq(0,1,.2)))+ ylab("Frequency") + theme_classic()+
+      theme(axis.text.x=element_text(size=rel(2.5)), 
+        axis.text.y=element_text(size=rel(3)),
+        axis.title.x=element_text(size=rel(3)),
+        axis.title.y=element_text(size=rel(3)))
+
+
+ks.test(vec+rnorm(dim(vec)[1], mean=0, sd=0.00000001), "punif", alternative = c("two.sided"))
+
+ggsave( file="Fig_5g.pdf", width=8, height=6)
+
+
+```
+
+
+
+## Figure 5h: Gini-Simpson Index among superficial and invasive clones
+
+
+
+```{r combo, echo=FALSE, message=FALSE, warning=FALSE}
+
+
+tumor.summary<-data.frame(
+  name=c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W"),
+  reroot=c("A9_4","A4_20", "none", "none", "A11_15", "none", "A21_26", "A7_7", "A3_24", "A7_3", "A5_19", "A6_25"))
+
+
+
+thr=0.05
+
+tumor.summary$super<-0
+tumor.summary$inv<-0
+tumor.summary$span<-0
+tumor.summary$simpson_super<-0
+tumor.summary$simpson_inv<-0
+
+
+#####################################
+## 
+#####################################
+
+
+
+for(nam in tumor.summary$name){
+  
+  
+  ###################################
+  # Pre-processing I
+  Xout<-tumor_process(nam)
+  datG<-Xout[[1]]
+  
+  ###################################
+  # Pre-processing II
+  XoutY<-MP_tree_function(thr, tumor.summary, nam, 10)
+  namz<-XoutY[[1]]
+  dat<-XoutY[[4]]
+  
+  
+  ##################################
+  ind<-match(namz$original, datG$spot)
+  namz$phenotype<-datG$phenotype[ind]
+  namz$sample<-datG$sample[ind]
+  namz$slide<-datG$slide[ind]
+  namz$subclone<-as.factor(as.character(namz$subclone))
+  
+  ind<-match(rownames(dat), namz$original)
+  labels.subclone<-namz$subclone[ind]
+  labels.pheno<-namz$phenotype[ind]
+  
+  c<-which(namz$phenotype=="inv" | namz$phenotype=="super" | namz$phenotype=="invasive")
+  namz<-namz[c,]
+  
+  a<-which(namz$phenotype=="inv" | namz$phenotype=="invasive")
+  down<-unique(namz$subclone[a])
+  b<-which(namz$phenotype=="super")
+  up<-unique(namz$subclone[b])
+
+  j<-which(tumor.summary$name==nam)
+  tumor.summary$super[j]<-length(setdiff(up, down))
+  tumor.summary$inv[j]<-length(setdiff(down, up))
+  tumor.summary$span[j]<-length(intersect(down,up))
+  
+  ll<-length(namz$subclone[a])
+  f<-table(namz$subclone[a])
+  tumor.summary$simpson_inv[j]<-1-sum(f*(f-1)/ll/(ll-1))
+  
+  ll<-length(namz$subclone[b])
+  f<-table(namz$subclone[b])
+  tumor.summary$simpson_super[j]<-1-sum(f*(f-1)/ll/(ll-1))
+  
+
+}
+
+
+# remove C (only super), K (adenoma), J (only one clone)
+
+tumor.summary<-tumor.summary[-c(1,7),-2]
+
+
+
+```
+
+
+```{r}
+
+
+S<-data.frame(coeff=c(tumor.summary$simpson_super,tumor.summary$simpson_inv),
+              lab=c(rep("Superficial",10), rep("Invasive",10)))
+
+pdf(file = "Fig_5h.pdf", width = 5, height = 8) # defaults to 7 x 7 inches
+
+beeswarm(coeff ~ lab, data = S, 
+         col = c("black", "black"), pch = 16, cex=2,spacing=1.5, cex.main=2,  main="Gini-Simpson Index", xlab="", ylab="",cex.axis=2, cex.lab=2,  ylim=c(0,1))
+dev.off()
+
+
+t.test(tumor.summary$simpson_super, tumor.summary$simpson_inv, paired=TRUE, alternative = "two.sided")
+
+```
+
+
+
+
+  
+

@@ -1,0 +1,101 @@
+---
+title: "Figure S6: Pearson Correlation"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache=FALSE)
+
+library(dplyr)
+library(ade4)
+library(sf)
+library(taRifx )
+library(Rtsne)
+library(ggplot2)
+library(adephylo)
+library(beeswarm)
+library(phangorn)
+source('funx.R')
+
+
+set.seed(6)
+```
+
+
+
+```{r prep, echo=FALSE}
+thr=.05 # set to 0 if no calling is required
+
+
+tumor.summary<-data.frame(
+  name=c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W"),
+  reroot=c("A9_4","A4_20", "none", "none", "A11_15", "none", "A21_26", "A7_7", "A3_24", "A7_3", "A5_19", "A6_25"))
+```
+
+
+
+
+
+
+
+```{r}
+#####################################
+## Fetch the tumor
+#####################################
+
+names.vec<-c("C","D","E","F","H","J", "K", "R", "M", "T", "U", "W")
+corr.sum<-data.frame(Name=names.vec, Correlation=0)
+corr.sum$label<-"ll"
+
+for(nam in names.vec){
+  
+Xout<-tumor_process(nam)
+
+datG<-Xout[[1]]
+distG_S1<-Xout[[2]]
+distG_S2<-Xout[[3]]
+datG_S1<-Xout[[4]]
+datG_S2<-Xout[[5]]
+
+
+#####################################
+## Physical vs genetic distance
+#####################################
+
+# generate distance vectors for both genetic and physical distance
+dist_S1<-dist_mat(datG_S1, distG_S1, thr)
+dist_S2<-dist_mat(datG_S2, distG_S2, thr)
+dist<-rbind(dist_S1, dist_S2)  # combine them
+
+# plot the correlations
+#ggplot(data=dist, aes(x=space, y=gen))+ geom_point()
+
+a<-summary(lm(dist$space~dist$gen))
+#print(a$coefficients)
+
+corr.sum$Correlation[which(names.vec==nam)]<-cor(dist$space, dist$gen)
+
+#print(cor.test(dist$space, dist$gen, method="kendall"))
+}
+
+
+#pdf(file = "Fig_S6.pdf", width = 8, height = 11) # defaults to 7 x 7 inches
+
+beeswarm(Correlation ~ label, data = corr.sum, 
+         col = 1, pch = 16, cex=4,spacing=3,  xlab="", ylab="",cex.axis=1.5,
+         main = 'Correlation: spatial vs genetic distance')
+bxplot(Correlation ~ label, data = corr.sum, add = TRUE)
+
+print(corr.sum)
+
+#dev.off()
+
+```
+
+
+
+
+  
+
